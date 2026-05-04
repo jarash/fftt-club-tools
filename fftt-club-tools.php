@@ -75,8 +75,41 @@ function fftt_club_tools_activate_plugin() {
         // Affiche un message d'erreur
         wp_die( 'Ce plugin nécessite que le plugin Advanced Custom Fields soit activé. <br><a href="' . admin_url( 'plugins.php' ) . '">Retour à la page des plugins</a>' );
     }
+
+    fftt_club_tools_schedule_cron();
 }
 register_activation_hook( __FILE__, 'fftt_club_tools_activate_plugin' );
+
+function fftt_club_tools_schedule_cron() {
+    $frequency = (string) get_option( 'fftt_club_tools_cron_frequency', 'daily' );
+    if ( $frequency === 'disabled' ) {
+        return;
+    }
+
+    if ( ! wp_next_scheduled( 'fftt_club_tools_cron_import' ) ) {
+        wp_schedule_event( time(), $frequency, 'fftt_club_tools_cron_import' );
+    }
+}
+
+function fftt_club_tools_unschedule_cron() {
+    $timestamp = wp_next_scheduled( 'fftt_club_tools_cron_import' );
+    if ( $timestamp ) {
+        wp_unschedule_event( $timestamp, 'fftt_club_tools_cron_import' );
+    }
+}
+
+register_deactivation_hook( __FILE__, 'fftt_club_tools_unschedule_cron' );
+
+add_action( 'fftt_club_tools_cron_import', static function () {
+    try {
+        $stats = FfttClubToolsImporter::run();
+        $stats['timestamp'] = current_time( 'mysql' );
+        update_option( 'fftt_club_tools_last_import_stats', $stats );
+        error_log( '[FFTT Club Tools cron] Import terminé : total=' . $stats['total'] . ', créés=' . $stats['created'] . ', mis à jour=' . $stats['updated'] . ', erreurs=' . $stats['errors'] );
+    } catch ( \Throwable $exception ) {
+        error_log( '[FFTT Club Tools cron] Import échoué : ' . $exception->getMessage() );
+    }
+} );
 
 // Message d'erreur dans l'administration si ACF est désactivé
 function fftt_club_tools_check_acf_dependency() {
@@ -151,6 +184,20 @@ function fftt_club_tools_settings_page() {
             update_option('fftt_club_tools_api_team_id', $postedApiTeamId);
         }
 
+        $allowedFrequencies = [ 'disabled', 'hourly', 'twicedaily', 'daily' ];
+        $postedFrequency = isset( $_POST['cron_frequency'] ) ? sanitize_text_field( wp_unslash( $_POST['cron_frequency'] ) ) : 'daily';
+        if ( ! in_array( $postedFrequency, $allowedFrequencies, true ) ) {
+            $postedFrequency = 'daily';
+        }
+
+        $previousFrequency = (string) get_option( 'fftt_club_tools_cron_frequency', 'daily' );
+        update_option( 'fftt_club_tools_cron_frequency', $postedFrequency );
+
+        if ( $postedFrequency !== $previousFrequency ) {
+            fftt_club_tools_unschedule_cron();
+            fftt_club_tools_schedule_cron();
+        }
+
         echo '<div class="updated"><p>Paramètres enregistrés avec succès.</p></div>';
     }
 
@@ -201,6 +248,29 @@ function fftt_club_tools_settings_page() {
                 </tr>
             </table>
             <input type="hidden" name="fftt_club_tools_save_api_settings" value="1" />
+            <?php
+            $cronFrequency = (string) get_option( 'fftt_club_tools_cron_frequency', 'daily' );
+            $nextCron = wp_next_scheduled( 'fftt_club_tools_cron_import' );
+            ?>
+            <h2>Import automatique (Cron)</h2>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="cron_frequency">Fréquence</label></th>
+                    <td>
+                        <select name="cron_frequency" id="cron_frequency">
+                            <option value="disabled" <?php selected( $cronFrequency, 'disabled' ); ?>>Désactivé</option>
+                            <option value="hourly" <?php selected( $cronFrequency, 'hourly' ); ?>>Toutes les heures</option>
+                            <option value="twicedaily" <?php selected( $cronFrequency, 'twicedaily' ); ?>>Deux fois par jour</option>
+                            <option value="daily" <?php selected( $cronFrequency, 'daily' ); ?>>Une fois par jour</option>
+                        </select>
+                        <?php if ( $nextCron ) : ?>
+                            <p class="description">Prochain import : <?php echo esc_html( get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $nextCron ), 'd/m/Y H:i' ) ); ?></p>
+                        <?php elseif ( $cronFrequency !== 'disabled' ) : ?>
+                            <p class="description">Aucun import planifié — réactivez le plugin pour planifier.</p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
             <?php submit_button('Enregistrer les paramètres'); ?>
         </form>
 

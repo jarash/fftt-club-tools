@@ -11,18 +11,9 @@ class FfttClubToolsImporter
      */
     public static function run(): array
     {
-        $apiLogin = self::getConfigValue(
-            ['FFTT_CLUB_TOOLS_API_LOGIN', 'USFAVTT_API_LOGIN'],
-            ['fftt_club_tools_api_login', 'usfavtt_api_login']
-        );
-        $apiPassword = self::getConfigValue(
-            ['FFTT_CLUB_TOOLS_API_PASSWORD', 'USFAVTT_API_PASSWORD'],
-            ['fftt_club_tools_api_password', 'usfavtt_api_password']
-        );
-        $apiTeamId = self::getConfigValue(
-            ['FFTT_CLUB_TOOLS_API_TEAM_ID', 'USFAVTT_API_TEAM_ID'],
-            ['fftt_club_tools_api_team_id', 'usfavtt_api_team_id']
-        );
+        $apiLogin = self::getConfigValue('FFTT_CLUB_TOOLS_API_LOGIN', 'fftt_club_tools_api_login');
+        $apiPassword = self::getConfigValue('FFTT_CLUB_TOOLS_API_PASSWORD', 'fftt_club_tools_api_password');
+        $apiTeamId = self::getConfigValue('FFTT_CLUB_TOOLS_API_TEAM_ID', 'fftt_club_tools_api_team_id');
 
         if ($apiLogin === '' || $apiPassword === '' || $apiTeamId === '') {
             throw new RuntimeException('Configuration API incomplète. Vérifier login, mot de passe et ID club.');
@@ -121,19 +112,15 @@ class FfttClubToolsImporter
         return $stats;
     }
 
-    private static function getConfigValue(array $constantNames, array $optionNames): string
+    private static function getConfigValue(string $constantName, string $optionName): string
     {
-        foreach ($constantNames as $constantName) {
-            if (defined($constantName)) {
-                return trim((string) constant($constantName));
-            }
+        if (defined($constantName)) {
+            return trim((string) constant($constantName));
         }
 
-        foreach ($optionNames as $optionName) {
-            $optionValue = get_option($optionName, null);
-            if ($optionValue !== null && $optionValue !== '') {
-                return trim((string) $optionValue);
-            }
+        $optionValue = get_option($optionName, null);
+        if ($optionValue !== null && $optionValue !== '') {
+            return trim((string) $optionValue);
         }
 
         return '';
