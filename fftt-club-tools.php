@@ -87,13 +87,20 @@ function fftt_club_tools_schedule_cron() {
     }
 
     if ( ! wp_next_scheduled( 'fftt_club_tools_cron_import' ) ) {
-        wp_schedule_event( time(), $frequency, 'fftt_club_tools_cron_import' );
+        $schedules = wp_get_schedules();
+        $interval = isset( $schedules[ $frequency ]['interval'] ) ? (int) $schedules[ $frequency ]['interval'] : DAY_IN_SECONDS;
+        wp_schedule_event( time() + $interval, $frequency, 'fftt_club_tools_cron_import' );
     }
 }
+add_action( 'init', 'fftt_club_tools_schedule_cron', 5 );
 
 function fftt_club_tools_unschedule_cron() {
-    $timestamp = wp_next_scheduled( 'fftt_club_tools_cron_import' );
-    if ( $timestamp ) {
+    while ( true ) {
+        $timestamp = wp_next_scheduled( 'fftt_club_tools_cron_import' );
+        if ( ! $timestamp ) {
+            break;
+        }
+
         wp_unschedule_event( $timestamp, 'fftt_club_tools_cron_import' );
     }
 }
@@ -110,6 +117,39 @@ add_action( 'fftt_club_tools_cron_import', static function () {
         error_log( '[FFTT Club Tools cron] Import échoué : ' . $exception->getMessage() );
     }
 } );
+
+// Fallback runner when WordPress loopback requests are unavailable (common in Docker/local setups).
+function fftt_club_tools_run_due_cron_without_loopback() {
+    if ( wp_doing_cron() ) {
+        return;
+    }
+
+    $frequency = (string) get_option( 'fftt_club_tools_cron_frequency', 'daily' );
+    if ( $frequency === 'disabled' ) {
+        return;
+    }
+
+    $nextTimestamp = wp_next_scheduled( 'fftt_club_tools_cron_import' );
+    if ( ! $nextTimestamp || $nextTimestamp > time() ) {
+        return;
+    }
+
+    $lockKey = 'fftt_club_tools_cron_import_lock';
+    if ( get_transient( $lockKey ) ) {
+        return;
+    }
+
+    set_transient( $lockKey, '1', 10 * MINUTE_IN_SECONDS );
+
+    try {
+        fftt_club_tools_unschedule_cron();
+        do_action( 'fftt_club_tools_cron_import' );
+        fftt_club_tools_schedule_cron();
+    } finally {
+        delete_transient( $lockKey );
+    }
+}
+add_action( 'init', 'fftt_club_tools_run_due_cron_without_loopback', 20 );
 
 // Message d'erreur dans l'administration si ACF est désactivé
 function fftt_club_tools_check_acf_dependency() {
@@ -251,6 +291,7 @@ function fftt_club_tools_settings_page() {
             <?php
             $cronFrequency = (string) get_option( 'fftt_club_tools_cron_frequency', 'daily' );
             $nextCron = wp_next_scheduled( 'fftt_club_tools_cron_import' );
+            $isOverdueCron = $nextCron && $nextCron <= time();
             ?>
             <h2>Import automatique (Cron)</h2>
             <table class="form-table">
@@ -265,6 +306,9 @@ function fftt_club_tools_settings_page() {
                         </select>
                         <?php if ( $nextCron ) : ?>
                             <p class="description">Prochain import : <?php echo esc_html( get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $nextCron ), 'd/m/Y H:i' ) ); ?></p>
+                            <?php if ( $isOverdueCron ) : ?>
+                                <p class="description">Import en retard: il sera lance a la prochaine requete WordPress.</p>
+                            <?php endif; ?>
                         <?php elseif ( $cronFrequency !== 'disabled' ) : ?>
                             <p class="description">Aucun import planifié — réactivez le plugin pour planifier.</p>
                         <?php endif; ?>
