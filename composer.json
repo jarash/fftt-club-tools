@@ -1,0 +1,15 @@
+{
+  "name": "jarash/fftt-club-tools",
+  "description": "WordPress plugin toolbox pour les clubs FFTT",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "jarash/fftt-api": "^0.1.4",
+    "yahnis-elsts/plugin-update-checker": "^5.5"
+  },
+  "autoload": {
+    "classmap": [
+      "Fftt/"
+    ]
+  }
+}

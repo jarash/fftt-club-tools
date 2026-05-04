@@ -1,0 +1,14 @@
+# Composer
+vendor/
+composer.lock
+
+# Build
+dist/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
