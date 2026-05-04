@@ -59,3 +59,50 @@
 .fftt_club_tools-ranking-empty {
     margin: 1rem 0;
 }
+
+.fftt_club_tools-team-page {
+    margin: 2rem 0;
+}
+
+.fftt_club_tools-team-header {
+    margin-bottom: 1rem;
+}
+
+.fftt_club_tools-team-description {
+    opacity: 0.85;
+}
+
+.fftt_club_tools-team-player-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.8rem;
+}
+
+.fftt_club_tools-team-player-item {
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 10px;
+    padding: 0.9rem;
+    background: color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.fftt_club_tools-team-player-name {
+    font-weight: 600;
+}
+
+.fftt_club_tools-team-player-meta {
+    margin-top: 0.35rem;
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+.fftt_club_tools-team-links {
+    margin-top: 1.25rem;
+    font-size: 0.95rem;
+}
+
+.fftt_club_tools-team-links ul {
+    margin: 0.4rem 0 0;
+}

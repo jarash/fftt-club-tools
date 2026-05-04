@@ -585,6 +585,44 @@ function fftt_club_tools_register_taxonomy_equipe() {
 }
 add_action( 'init', 'fftt_club_tools_register_taxonomy_equipe' );
 
+function fftt_club_tools_customize_team_archive_query( $query ) {
+    if ( is_admin() || ! $query->is_main_query() || ! is_tax( 'equipe' ) ) {
+        return;
+    }
+
+    $query->set( 'post_type', 'joueur' );
+    $query->set( 'post_status', 'publish' );
+    $query->set( 'posts_per_page', -1 );
+    $query->set( 'meta_key', 'points_fftt_virtuel' );
+    $query->set( 'orderby', 'meta_value_num' );
+    $query->set( 'order', 'DESC' );
+}
+add_action( 'pre_get_posts', 'fftt_club_tools_customize_team_archive_query' );
+
+function fftt_club_tools_render_team_archive_points( $blockContent, $block ) {
+    if ( is_admin() || ! is_tax( 'equipe' ) ) {
+        return $blockContent;
+    }
+
+    $postId = get_the_ID();
+    if ( ! $postId || get_post_type( $postId ) !== 'joueur' ) {
+        return $blockContent;
+    }
+
+    $points = (int) get_post_meta( $postId, 'points_fftt_virtuel', true );
+    if ( $points <= 0 ) {
+        $points = (int) get_post_meta( $postId, 'points_fftt', true );
+    }
+
+    $classes = [ 'wp-block-post-date', 'fftt_club_tools-player-points' ];
+    if ( isset( $block['attrs']['className'] ) && is_string( $block['attrs']['className'] ) ) {
+        $classes[] = $block['attrs']['className'];
+    }
+
+    return '<div class="' . esc_attr( implode( ' ', array_filter( $classes ) ) ) . '">' . esc_html( sprintf( '%s points FFTT', number_format_i18n( $points, 0 ) ) ) . '</div>';
+}
+add_filter( 'render_block_core/post-date', 'fftt_club_tools_render_team_archive_points', 10, 2 );
+
 #endregion
 
 #region ShortCode [ranking]
