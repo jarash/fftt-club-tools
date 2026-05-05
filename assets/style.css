@@ -489,7 +489,7 @@ body.tax-equipe .wp-block-post-template > li > .wp-block-group {
 .fftt_club_tools-player-stats {
     display: grid;
     gap: 0.8rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 3fr) minmax(220px, 2fr);
 }
 
 .fftt_club_tools-player-card {
@@ -501,7 +501,6 @@ body.tax-equipe .wp-block-post-template > li > .wp-block-group {
     box-shadow: 0 12px 30px rgba(23, 32, 51, 0.06);
 }
 
-.fftt_club_tools-player-card--points,
 .fftt_club_tools-player-card--matches {
     grid-column: span 2;
 }
