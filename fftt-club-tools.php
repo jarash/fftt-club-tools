@@ -681,19 +681,6 @@ function fftt_club_tools_hide_empty_player_byline_group( string $blockContent ):
 }
 add_filter( 'render_block_core/group', 'fftt_club_tools_hide_empty_player_byline_group', 10, 1 );
 
-function fftt_club_tools_add_player_row( array &$rows, string $label, string $value, bool $isHtml = false ): void {
-    $normalizedValue = trim( $value );
-    if ( $normalizedValue === '' ) {
-        return;
-    }
-
-    $rows[] = [
-        'label' => $label,
-        'value' => $normalizedValue,
-        'is_html' => $isHtml,
-    ];
-}
-
 function fftt_club_tools_get_player_team_link( int $postId ): string {
     $terms = wp_get_post_terms( $postId, 'equipe' );
     if ( is_wp_error( $terms ) || empty( $terms ) ) {
@@ -713,9 +700,40 @@ function fftt_club_tools_get_player_team_link( int $postId ): string {
     return '<a class="fftt_club_tools-player-team-link" href="' . esc_url( $teamUrl ) . '">' . esc_html( $team->name ) . '</a>';
 }
 
-function fftt_club_tools_collect_player_rows( int $postId ): array {
-    $rows = [];
+function fftt_club_tools_player_icon( string $name ): string {
+    $icons = [
+        'man' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4.5h5v5"/><path d="m19 5-5.6 5.6"/><circle cx="10" cy="14" r="5"/><path d="M10 19v3"/><path d="M7.5 21h5"/></svg>',
+        'woman' => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M12 14v7"/><path d="M8.5 18h7"/></svg>',
+        'left-hand' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4.5v8.2"/><path d="M11.8 5.4v7.3"/><path d="M8.6 7.2v6.4"/><path d="M5.4 10.4v5.1c0 3 2.3 5 5.5 5h2.7c3.1 0 5-2.1 5-5.2v-1.6c0-1.3-.8-2.4-2.1-2.4H15"/><path d="M18.5 11.7V8.4"/></svg>',
+        'right-hand' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5v8.2"/><path d="M12.2 5.4v7.3"/><path d="M15.4 7.2v6.4"/><path d="M18.6 10.4v5.1c0 3-2.3 5-5.5 5h-2.7c-3.1 0-5-2.1-5-5.2v-1.6c0-1.3.8-2.4 2.1-2.4H9"/><path d="M5.5 11.7V8.4"/></svg>',
+        'up' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 15 5-5 3.8 3.8L20 7.6"/><path d="M15 7h5v5"/></svg>',
+        'down' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 9 5 5 3.8-3.8L20 16.4"/><path d="M15 17h5v-5"/></svg>',
+        'stable' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m15 8 4 4-4 4"/></svg>',
+        'trophy' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v4.5a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5.5a2.5 2.5 0 0 0 2.9 3.9"/><path d="M16 6h2.5a2.5 2.5 0 0 1-2.9 3.9"/><path d="M12 12.5V17"/><path d="M9 20h6"/><path d="M10 17h4"/></svg>',
+        'shirt' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 4 4 2 4-2 4 3-2.3 4L16 10v10H8V10l-1.7 1L4 7l4-3Z"/></svg>',
+        'id' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 10h4"/><path d="M8 14h8"/></svg>',
+        'team' => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="9" r="2.5"/><path d="M3.5 19a4.5 4.5 0 0 1 9 0"/><path d="M13.5 18.5a3.5 3.5 0 0 1 7 0"/></svg>',
+    ];
 
+    return $icons[ $name ] ?? '';
+}
+
+function fftt_club_tools_player_badge( string $class, string $icon, string $label, string $value, bool $isHtml = false ): string {
+    $normalizedValue = trim( $value );
+    if ( $normalizedValue === '' ) {
+        return '';
+    }
+
+    $html = '<span class="fftt_club_tools-player-badge fftt_club_tools-player-badge--' . esc_attr( $class ) . '">';
+    $html .= '<span class="fftt_club_tools-player-icon">' . fftt_club_tools_player_icon( $icon ) . '</span>';
+    $html .= '<span class="screen-reader-text">' . esc_html( $label ) . ' : </span>';
+    $html .= $isHtml ? wp_kses_post( $normalizedValue ) : esc_html( $normalizedValue );
+    $html .= '</span>';
+
+    return $html;
+}
+
+function fftt_club_tools_collect_player_profile( int $postId ): array {
     $prenom = trim( (string) get_post_meta( $postId, 'prenom', true ) );
     $nom = trim( (string) get_post_meta( $postId, 'nom', true ) );
     $surnom = trim( (string) get_post_meta( $postId, 'surnom', true ) );
@@ -730,55 +748,63 @@ function fftt_club_tools_collect_player_rows( int $postId ): array {
     $pointsVirtuel = (float) get_post_meta( $postId, 'points_fftt_virtuel', true );
     $progression = (float) get_post_meta( $postId, 'progression_points_fftt', true );
     $matchsJoues = (int) get_post_meta( $postId, 'matchs_joues', true );
-    $matchsGagnes = (int) get_post_meta( $postId, 'matchs_gagnes', true );
+    $matchsGagnes = max( 0, (int) get_post_meta( $postId, 'matchs_gagnes', true ) );
+    $matchsPerdus = max( 0, $matchsJoues - $matchsGagnes );
+    $winPct = $matchsJoues > 0 ? min( 100, max( 0, (int) round( $matchsGagnes / $matchsJoues * 100 ) ) ) : 0;
 
-    fftt_club_tools_add_player_row( $rows, 'Prenom', $prenom );
-    fftt_club_tools_add_player_row( $rows, 'Nom', $nom );
-    fftt_club_tools_add_player_row( $rows, 'Surnom', $surnom );
-
+    $badges = [];
     if ( $sexe === 'homme' ) {
-        fftt_club_tools_add_player_row( $rows, 'Sexe', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#9794;</span> Homme', true );
+        $badges[] = fftt_club_tools_player_badge( 'gender', 'man', 'Sexe', 'Homme' );
     } elseif ( $sexe === 'femme' ) {
-        fftt_club_tools_add_player_row( $rows, 'Sexe', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#9792;</span> Femme', true );
+        $badges[] = fftt_club_tools_player_badge( 'gender', 'woman', 'Sexe', 'Femme' );
     }
 
     if ( $main === 'gauche' ) {
-        fftt_club_tools_add_player_row( $rows, 'Main', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#8592;</span> Gauche', true );
+        $badges[] = fftt_club_tools_player_badge( 'hand', 'left-hand', 'Main', 'Gaucher' );
     } elseif ( $main === 'droite' ) {
-        fftt_club_tools_add_player_row( $rows, 'Main', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#8594;</span> Droite', true );
+        $badges[] = fftt_club_tools_player_badge( 'hand', 'right-hand', 'Main', 'Droitier' );
     }
 
-    fftt_club_tools_add_player_row( $rows, 'Categorie', strtoupper( $categorie ) );
-    fftt_club_tools_add_player_row( $rows, 'Numero de licence', $numeroLicence );
+    $badges[] = fftt_club_tools_player_badge( 'category', 'shirt', 'Catégorie', strtoupper( $categorie ) );
+    $badges[] = fftt_club_tools_player_badge( 'license', 'id', 'Licence', $numeroLicence );
 
     $teamLink = fftt_club_tools_get_player_team_link( $postId );
-    fftt_club_tools_add_player_row( $rows, 'Equipe', $teamLink, true );
+    $badges[] = fftt_club_tools_player_badge( 'team', 'team', 'Équipe', $teamLink, true );
 
+    $pointsPrimary = $pointsVirtuel > 0 ? $pointsVirtuel : $pointsFftt;
+    $pointsPrimaryLabel = $pointsVirtuel > 0 ? 'Points virtuels' : 'Points FFTT';
+    $pointsSecondary = [];
     if ( $pointsFftt > 0 ) {
-        fftt_club_tools_add_player_row( $rows, 'Points FFTT', number_format_i18n( $pointsFftt, 0 ) );
-    }
-    if ( $pointsDebutSaison > 0 ) {
-        fftt_club_tools_add_player_row( $rows, 'Points debut saison', number_format_i18n( $pointsDebutSaison, 0 ) );
+        $pointsSecondary[] = [ 'label' => 'FFTT', 'value' => number_format_i18n( $pointsFftt, 0 ) ];
     }
     if ( $pointsMensuel > 0 ) {
-        fftt_club_tools_add_player_row( $rows, 'Points mensuel', number_format_i18n( $pointsMensuel, 1 ) );
+        $pointsSecondary[] = [ 'label' => 'Mensuel', 'value' => number_format_i18n( $pointsMensuel, 1 ) ];
     }
-    if ( $pointsVirtuel > 0 ) {
-        fftt_club_tools_add_player_row( $rows, 'Points virtuel', number_format_i18n( $pointsVirtuel, 1 ) );
-    }
-
-    if ( $progression !== 0.0 ) {
-        $progressionLabel = ( $progression > 0 ? '+' : '' ) . number_format_i18n( $progression, 1 );
-        fftt_club_tools_add_player_row( $rows, 'Progression', $progressionLabel );
+    if ( $pointsDebutSaison > 0 ) {
+        $pointsSecondary[] = [ 'label' => 'Début saison', 'value' => number_format_i18n( $pointsDebutSaison, 0 ) ];
     }
 
-    if ( $matchsJoues > 0 ) {
-        fftt_club_tools_add_player_row( $rows, 'Matchs joues', (string) $matchsJoues );
-        $winPct = round( $matchsGagnes / $matchsJoues * 100 );
-        fftt_club_tools_add_player_row( $rows, 'Victoires', $matchsGagnes . ' (' . $winPct . '%)' );
+    $progressionStatus = 'stable';
+    if ( $progression > 0 ) {
+        $progressionStatus = 'up';
+    } elseif ( $progression < 0 ) {
+        $progressionStatus = 'down';
     }
 
-    return $rows;
+    return [
+        'display_name' => trim( $prenom . ' ' . $nom ),
+        'nickname' => $surnom,
+        'badges' => array_values( array_filter( $badges ) ),
+        'points_primary' => $pointsPrimary,
+        'points_primary_label' => $pointsPrimaryLabel,
+        'points_secondary' => $pointsSecondary,
+        'progression' => $progression,
+        'progression_status' => $progressionStatus,
+        'matchs_joues' => $matchsJoues,
+        'matchs_gagnes' => $matchsGagnes,
+        'matchs_perdus' => $matchsPerdus,
+        'win_pct' => $winPct,
+    ];
 }
 
 function fftt_club_tools_render_player_single_content( string $content ): string {
@@ -796,30 +822,79 @@ function fftt_club_tools_render_player_single_content( string $content ): string
         $photoUrl = FFTT_CLUB_TOOLS_PLUGIN_URL . 'assets/default-player.svg';
     }
 
-    $metaRows = fftt_club_tools_collect_player_rows( (int) $postId );
+    $profile = fftt_club_tools_collect_player_profile( (int) $postId );
+    $progressionValue = (float) $profile['progression'];
+    $progressionLabel = ( $progressionValue > 0 ? '+' : '' ) . number_format_i18n( $progressionValue, 1 );
 
     $html = '<section class="fftt_club_tools-player-single">';
     $html .= '<div class="fftt_club_tools-player-single-grid">';
     $html .= '<figure class="fftt_club_tools-player-figure">';
     $html .= '<img class="fftt_club_tools-player-photo" src="' . esc_url( $photoUrl ) . '" alt="' . esc_attr( get_the_title() ) . '" loading="lazy" />';
+    if ( (string) $profile['nickname'] !== '' ) {
+        $html .= '<figcaption class="fftt_club_tools-player-nickname">' . esc_html( (string) $profile['nickname'] ) . '</figcaption>';
+    }
     $html .= '</figure>';
     $html .= '<section class="fftt_club_tools-player-data" aria-label="Informations joueur">';
 
-    if ( $metaRows !== [] ) {
-        $html .= '<dl class="fftt_club_tools-player-fields">';
-        foreach ( $metaRows as $metaRow ) {
-            $html .= '<dt>' . esc_html( (string) $metaRow['label'] ) . '</dt>';
-            if ( ! empty( $metaRow['is_html'] ) ) {
-                $html .= '<dd>' . wp_kses_post( (string) $metaRow['value'] ) . '</dd>';
-            } else {
-                $html .= '<dd>' . esc_html( (string) $metaRow['value'] ) . '</dd>';
-            }
-        }
-        $html .= '</dl>';
-    } else {
-        $html .= '<p>Aucun champ personnalise disponible pour ce joueur.</p>';
+    if ( (string) $profile['display_name'] !== '' ) {
+        $html .= '<p class="fftt_club_tools-player-kicker">' . esc_html( (string) $profile['display_name'] ) . '</p>';
     }
 
+    if ( $profile['badges'] !== [] ) {
+        $html .= '<div class="fftt_club_tools-player-badges">';
+        foreach ( $profile['badges'] as $badge ) {
+            $html .= (string) $badge;
+        }
+        $html .= '</div>';
+    }
+
+    $html .= '<div class="fftt_club_tools-player-stats">';
+
+    if ( (float) $profile['points_primary'] > 0 ) {
+        $pointsPrimaryDecimals = (string) $profile['points_primary_label'] === 'Points FFTT' ? 0 : 1;
+
+        $html .= '<article class="fftt_club_tools-player-card fftt_club_tools-player-card--points">';
+        $html .= '<span class="fftt_club_tools-player-card-label">' . esc_html( (string) $profile['points_primary_label'] ) . '</span>';
+        $html .= '<strong class="fftt_club_tools-player-card-value">' . esc_html( number_format_i18n( (float) $profile['points_primary'], $pointsPrimaryDecimals ) ) . '</strong>';
+
+        if ( $profile['points_secondary'] !== [] ) {
+            $html .= '<div class="fftt_club_tools-player-mini-stats">';
+            foreach ( $profile['points_secondary'] as $secondaryStat ) {
+                $html .= '<span><strong>' . esc_html( (string) $secondaryStat['value'] ) . '</strong> ' . esc_html( (string) $secondaryStat['label'] ) . '</span>';
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</article>';
+    }
+
+    $html .= '<article class="fftt_club_tools-player-card fftt_club_tools-player-card--progress fftt_club_tools-player-card--' . esc_attr( (string) $profile['progression_status'] ) . '">';
+    $html .= '<span class="fftt_club_tools-player-card-icon">' . fftt_club_tools_player_icon( (string) $profile['progression_status'] ) . '</span>';
+    $html .= '<span class="fftt_club_tools-player-card-label">Progression</span>';
+    $html .= '<strong class="fftt_club_tools-player-card-value">' . esc_html( $progressionLabel ) . '</strong>';
+    $html .= '</article>';
+
+    if ( (int) $profile['matchs_joues'] > 0 ) {
+        $html .= '<article class="fftt_club_tools-player-card fftt_club_tools-player-card--matches">';
+        $html .= '<div class="fftt_club_tools-player-card-heading">';
+        $html .= '<span class="fftt_club_tools-player-card-icon">' . fftt_club_tools_player_icon( 'trophy' ) . '</span>';
+        $html .= '<span class="fftt_club_tools-player-card-label">Matchs</span>';
+        $html .= '</div>';
+        $html .= '<div class="fftt_club_tools-player-match-summary">';
+        $html .= '<strong>' . esc_html( (string) $profile['matchs_joues'] ) . '</strong>';
+        $html .= '<span>' . esc_html( (string) $profile['win_pct'] ) . '% de victoires</span>';
+        $html .= '</div>';
+        $html .= '<div class="fftt_club_tools-player-winbar" aria-label="' . esc_attr( (string) $profile['win_pct'] . '% de victoires' ) . '">';
+        $html .= '<span style="width:' . esc_attr( (string) $profile['win_pct'] ) . '%"></span>';
+        $html .= '</div>';
+        $html .= '<div class="fftt_club_tools-player-match-split">';
+        $html .= '<span><strong>' . esc_html( (string) $profile['matchs_gagnes'] ) . '</strong> victoires</span>';
+        $html .= '<span><strong>' . esc_html( (string) $profile['matchs_perdus'] ) . '</strong> défaites</span>';
+        $html .= '</div>';
+        $html .= '</article>';
+    }
+
+    $html .= '</div>';
     $html .= '</section>';
     $html .= '</div>';
     $html .= '</section>';
