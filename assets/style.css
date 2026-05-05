@@ -354,7 +354,9 @@ body.tax-equipe .wp-block-post-template > li > .wp-block-group {
 }
 
 .fftt_club_tools-player-single {
-    margin: 2rem 0;
+    width: min(calc(100vw - 2rem), var(--wp--style--global--wide-size, 1120px)) !important;
+    max-width: min(calc(100vw - 2rem), var(--wp--style--global--wide-size, 1120px)) !important;
+    margin: 2rem auto !important;
     --fftt-player-ink: #172033;
     --fftt-player-muted: #687084;
     --fftt-player-line: color-mix(in srgb, currentColor 14%, transparent);
@@ -369,8 +371,8 @@ body.tax-equipe .wp-block-post-template > li > .wp-block-group {
 
 .fftt_club_tools-player-single-grid {
     display: grid;
-    gap: 1rem;
-    grid-template-columns: minmax(190px, 280px) minmax(0, 1fr);
+    gap: 1.25rem;
+    grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
     align-items: stretch;
 }
 
@@ -665,6 +667,13 @@ body.tax-equipe .wp-block-post-template > li > .wp-block-group {
 
     .fftt_club_tools-team-card-stats {
         grid-template-columns: 1fr;
+    }
+
+    .fftt_club_tools-player-single {
+        width: auto !important;
+        max-width: 100% !important;
+        margin-right: 0 !important;
+        margin-left: 0 !important;
     }
 
     .fftt_club_tools-player-single-grid {

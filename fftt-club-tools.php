@@ -971,7 +971,7 @@ function fftt_club_tools_render_player_single_content( string $content ): string
     $progressionValue = (float) $profile['progression'];
     $progressionLabel = ( $progressionValue > 0 ? '+' : '' ) . number_format_i18n( $progressionValue, 1 );
 
-    $html = '<section class="fftt_club_tools-player-single">';
+    $html = '<section class="fftt_club_tools-player-single alignwide">';
     $html .= '<div class="fftt_club_tools-player-single-grid">';
     $html .= '<figure class="fftt_club_tools-player-figure">';
     $html .= '<img class="fftt_club_tools-player-photo" src="' . esc_url( $photoUrl ) . '" alt="' . esc_attr( get_the_title() ) . '" loading="lazy" />';
