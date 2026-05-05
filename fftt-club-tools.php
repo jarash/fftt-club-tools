@@ -611,6 +611,83 @@ function fftt_club_tools_customize_team_archive_query( $query ) {
 }
 add_action( 'pre_get_posts', 'fftt_club_tools_customize_team_archive_query' );
 
+function fftt_club_tools_get_player_points( int $postId ): float {
+    $points = (float) get_post_meta( $postId, 'points_fftt_virtuel', true );
+    if ( $points <= 0 ) {
+        $points = (float) get_post_meta( $postId, 'points_fftt', true );
+    }
+
+    return $points;
+}
+
+function fftt_club_tools_render_team_archive_header( string $blockContent ): string {
+    if ( is_admin() || ! is_tax( 'equipe' ) ) {
+        return $blockContent;
+    }
+
+    $team = get_queried_object();
+    if ( ! $team instanceof WP_Term ) {
+        return $blockContent;
+    }
+
+    $playerIds = get_posts( [
+        'fields' => 'ids',
+        'post_type' => 'joueur',
+        'post_status' => 'publish',
+        'posts_per_page' => -1,
+        'tax_query' => [
+            [
+                'taxonomy' => 'equipe',
+                'field' => 'term_id',
+                'terms' => (int) $team->term_id,
+            ],
+        ],
+    ] );
+
+    $playerCount = count( $playerIds );
+    $totalPoints = 0.0;
+    $totalProgression = 0.0;
+    $totalMatches = 0;
+    $totalWins = 0;
+
+    foreach ( $playerIds as $playerId ) {
+        $points = fftt_club_tools_get_player_points( (int) $playerId );
+        $totalPoints += $points;
+        $totalProgression += (float) get_post_meta( (int) $playerId, 'progression_points_fftt', true );
+        $totalMatches += (int) get_post_meta( (int) $playerId, 'matchs_joues', true );
+        $totalWins += max( 0, (int) get_post_meta( (int) $playerId, 'matchs_gagnes', true ) );
+    }
+
+    $averagePoints = $playerCount > 0 ? round( $totalPoints / $playerCount ) : 0;
+    $teamWinPct = $totalMatches > 0 ? min( 100, max( 0, (int) round( $totalWins / $totalMatches * 100 ) ) ) : 0;
+    $totalProgressionLabel = ( $totalProgression > 0 ? '+' : '' ) . number_format_i18n( $totalProgression, 1 );
+
+    $html = '<section class="fftt_club_tools-team-hero" aria-label="Résumé de l’équipe">';
+    $html .= '<div>';
+    $html .= '<span class="fftt_club_tools-team-hero-kicker">Équipe</span>';
+    $html .= '<h1 class="fftt_club_tools-team-hero-title">' . esc_html( $team->name ) . '</h1>';
+    if ( trim( (string) $team->description ) !== '' ) {
+        $html .= '<p class="fftt_club_tools-team-hero-description">' . esc_html( trim( (string) $team->description ) ) . '</p>';
+    }
+    $html .= '</div>';
+    $html .= '<div class="fftt_club_tools-team-hero-stats">';
+    $html .= '<span><strong>' . esc_html( (string) $playerCount ) . '</strong> joueurs</span>';
+    if ( $averagePoints > 0 ) {
+        $html .= '<span><strong>' . esc_html( number_format_i18n( $averagePoints, 0 ) ) . '</strong> moyenne</span>';
+    }
+    if ( $totalProgression !== 0.0 ) {
+        $html .= '<span class="fftt_club_tools-team-hero-stat--' . esc_attr( $totalProgression > 0 ? 'up' : 'down' ) . '"><strong>' . esc_html( $totalProgressionLabel ) . '</strong> progression</span>';
+    }
+    if ( $totalMatches > 0 ) {
+        $html .= '<span><strong>' . esc_html( (string) $teamWinPct ) . '%</strong> ' . esc_html( (string) $totalWins ) . '/' . esc_html( (string) $totalMatches ) . ' victoires</span>';
+    }
+    $html .= '</div>';
+    $html .= '</section>';
+
+    return $html;
+}
+add_filter( 'render_block_core/query-title', 'fftt_club_tools_render_team_archive_header', 10, 1 );
+
 function fftt_club_tools_render_team_archive_points( $blockContent, $block ) {
     if ( is_admin() || ! is_tax( 'equipe' ) ) {
         return $blockContent;
@@ -621,19 +698,87 @@ function fftt_club_tools_render_team_archive_points( $blockContent, $block ) {
         return $blockContent;
     }
 
-    $points = (int) get_post_meta( $postId, 'points_fftt_virtuel', true );
-    if ( $points <= 0 ) {
-        $points = (int) get_post_meta( $postId, 'points_fftt', true );
-    }
-
-    $classes = [ 'wp-block-post-date', 'fftt_club_tools-player-points' ];
-    if ( isset( $block['attrs']['className'] ) && is_string( $block['attrs']['className'] ) ) {
-        $classes[] = $block['attrs']['className'];
-    }
-
-    return '<div class="' . esc_attr( implode( ' ', array_filter( $classes ) ) ) . '">' . esc_html( sprintf( '%s points FFTT', number_format_i18n( $points, 0 ) ) ) . '</div>';
+    return '';
 }
 add_filter( 'render_block_core/post-date', 'fftt_club_tools_render_team_archive_points', 10, 2 );
+
+function fftt_club_tools_render_team_archive_player_card( string $blockContent, array $block ): string {
+    if ( is_admin() || ! is_tax( 'equipe' ) ) {
+        return $blockContent;
+    }
+
+    $postId = get_the_ID();
+    if ( ! $postId || get_post_type( $postId ) !== 'joueur' ) {
+        return $blockContent;
+    }
+
+    $profile = fftt_club_tools_collect_player_profile( (int) $postId );
+    $photoUrl = get_the_post_thumbnail_url( $postId, 'thumbnail' );
+    if ( ! $photoUrl ) {
+        $photoUrl = FFTT_CLUB_TOOLS_PLUGIN_URL . 'assets/default-player.svg';
+    }
+
+    $points = fftt_club_tools_get_player_points( (int) $postId );
+    $progression = (float) $profile['progression'];
+    $progressionLabel = ( $progression > 0 ? '+' : '' ) . number_format_i18n( $progression, 1 );
+    $playerUrl = get_permalink( $postId );
+
+    $badges = [];
+    foreach ( (array) $profile['badges'] as $badge ) {
+        $badgeHtml = (string) $badge;
+        if (
+            strpos( $badgeHtml, 'fftt_club_tools-player-badge--team' ) !== false
+            || strpos( $badgeHtml, 'fftt_club_tools-player-badge--hand' ) !== false
+            || strpos( $badgeHtml, 'fftt_club_tools-player-badge--license' ) !== false
+        ) {
+            continue;
+        }
+
+        if ( count( $badges ) < 2 ) {
+            $badges[] = $badgeHtml;
+        }
+    }
+
+    $html = '<article class="fftt_club_tools-team-card">';
+    $html .= '<a class="fftt_club_tools-team-card-main" href="' . esc_url( $playerUrl ) . '">';
+    $html .= '<img class="fftt_club_tools-team-card-photo" src="' . esc_url( $photoUrl ) . '" alt="' . esc_attr( get_the_title( $postId ) ) . '" loading="lazy" />';
+    $html .= '<span class="fftt_club_tools-team-card-name">' . esc_html( get_the_title( $postId ) ) . '</span>';
+    $html .= '</a>';
+
+    if ( $badges !== [] ) {
+        $html .= '<div class="fftt_club_tools-team-card-badges">';
+        foreach ( $badges as $badge ) {
+            $html .= $badge;
+        }
+        $html .= '</div>';
+    }
+
+    $html .= '<div class="fftt_club_tools-team-card-stats">';
+    if ( $points > 0 ) {
+        $html .= '<span class="fftt_club_tools-team-card-points"><strong>' . esc_html( number_format_i18n( $points, 0 ) ) . '</strong> pts</span>';
+    }
+    $html .= '<span class="fftt_club_tools-team-card-progress fftt_club_tools-team-card-progress--' . esc_attr( (string) $profile['progression_status'] ) . '">';
+    $html .= '<span class="fftt_club_tools-player-card-icon">' . fftt_club_tools_player_icon( (string) $profile['progression_status'] ) . '</span>';
+    $html .= esc_html( $progressionLabel );
+    $html .= '</span>';
+    if ( (int) $profile['matchs_joues'] > 0 ) {
+        $html .= '<span class="fftt_club_tools-team-card-record"><strong>' . esc_html( (string) $profile['win_pct'] ) . '%</strong> victoires</span>';
+    }
+    $html .= '</div>';
+    if ( (int) $profile['matchs_joues'] > 0 ) {
+        $html .= '<div class="fftt_club_tools-team-card-performance">';
+        $html .= '<div class="fftt_club_tools-team-card-winbar" aria-label="' . esc_attr( (string) $profile['win_pct'] . '% de victoires' ) . '"><span style="width:' . esc_attr( (string) $profile['win_pct'] ) . '%"></span></div>';
+        $html .= '<div class="fftt_club_tools-team-card-performance-meta">';
+        $html .= '<span><strong>' . esc_html( (string) $profile['matchs_gagnes'] ) . '</strong> gagnés</span>';
+        $html .= '<span><strong>' . esc_html( (string) $profile['matchs_perdus'] ) . '</strong> perdus</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+    }
+    $html .= '</article>';
+
+    return $html;
+}
+add_filter( 'render_block_core/post-title', 'fftt_club_tools_render_team_archive_player_card', 10, 2 );
 
 function fftt_club_tools_hide_player_meta_byline( string $blockContent ): string {
     if ( is_admin() || ! is_singular( 'joueur' ) ) {
