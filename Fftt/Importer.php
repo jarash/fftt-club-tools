@@ -41,6 +41,7 @@ class FfttClubToolsImporter
             try {
                 $playerDetail = $ffttService->ffttApi->retrieveJoueurDetails($licenceId);
                 $virtualPoints = $ffttService->ffttApi->retrieveVirtualPoints($licenceId);
+                $parties = $ffttService->ffttApi->listPartiesJoueurByLicence($licenceId);
             } catch (Throwable $exception) {
                 $stats['skipped']++;
                 $stats['errors']++;
@@ -105,6 +106,11 @@ class FfttClubToolsImporter
             update_post_meta($postId, 'points_fftt_mensuel', $playerDetail->getPointsMensuel());
             update_post_meta($postId, 'points_fftt_virtuel', $virtualPoints->getVirtualPoints());
             update_post_meta($postId, 'progression_points_fftt', $virtualPoints->getSeasonlyPointsWon());
+
+            $matchsJoues = count($parties);
+            $matchsGagnes = count(array_filter($parties, fn($p) => $p->isVictoire()));
+            update_post_meta($postId, 'matchs_joues', $matchsJoues);
+            update_post_meta($postId, 'matchs_gagnes', $matchsGagnes);
 
             $stats['updated']++;
         }

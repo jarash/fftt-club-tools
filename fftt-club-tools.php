@@ -476,6 +476,18 @@ add_action( 'acf/init', function() {
                     'type' => 'number',
                 ),
                 array(
+                    'key' => 'matchs_joues',
+                    'label' => 'Matchs joués',
+                    'name' => 'matchs_joues',
+                    'type' => 'number',
+                ),
+                array(
+                    'key' => 'matchs_gagnes',
+                    'label' => 'Matchs gagnés',
+                    'name' => 'matchs_gagnes',
+                    'type' => 'number',
+                ),
+                array(
                     'key' => 'categorie',
                     'label' => 'Catégorie',
                     'name' => 'categorie',
@@ -717,6 +729,8 @@ function fftt_club_tools_collect_player_rows( int $postId ): array {
     $pointsMensuel = (float) get_post_meta( $postId, 'points_fftt_mensuel', true );
     $pointsVirtuel = (float) get_post_meta( $postId, 'points_fftt_virtuel', true );
     $progression = (float) get_post_meta( $postId, 'progression_points_fftt', true );
+    $matchsJoues = (int) get_post_meta( $postId, 'matchs_joues', true );
+    $matchsGagnes = (int) get_post_meta( $postId, 'matchs_gagnes', true );
 
     fftt_club_tools_add_player_row( $rows, 'Prenom', $prenom );
     fftt_club_tools_add_player_row( $rows, 'Nom', $nom );
@@ -756,6 +770,12 @@ function fftt_club_tools_collect_player_rows( int $postId ): array {
     if ( $progression !== 0.0 ) {
         $progressionLabel = ( $progression > 0 ? '+' : '' ) . number_format_i18n( $progression, 1 );
         fftt_club_tools_add_player_row( $rows, 'Progression', $progressionLabel );
+    }
+
+    if ( $matchsJoues > 0 ) {
+        fftt_club_tools_add_player_row( $rows, 'Matchs joues', (string) $matchsJoues );
+        $winPct = round( $matchsGagnes / $matchsJoues * 100 );
+        fftt_club_tools_add_player_row( $rows, 'Victoires', $matchsGagnes . ' (' . $winPct . '%)' );
     }
 
     return $rows;
