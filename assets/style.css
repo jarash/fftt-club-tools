@@ -190,6 +190,10 @@ body.tax-equipe main.wp-block-group {
     color: var(--fftt-team-red);
 }
 
+.fftt_club_tools-team-hero-stat--standing strong {
+    color: var(--fftt-team-blue);
+}
+
 body.tax-equipe .wp-block-query.alignfull {
     margin-top: 0;
     box-sizing: border-box;

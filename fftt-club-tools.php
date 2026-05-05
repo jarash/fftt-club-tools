@@ -24,6 +24,7 @@ if ( file_exists( $ffttClubToolsAutoloadPath ) ) {
 
 require_once FFTT_CLUB_TOOLS_PLUGIN_PATH . 'Fftt/Fftt.php';
 require_once FFTT_CLUB_TOOLS_PLUGIN_PATH . 'Fftt/Importer.php';
+require_once FFTT_CLUB_TOOLS_PLUGIN_PATH . 'Fftt/TeamStandingImporter.php';
 
 // Auto-update depuis GitHub Releases.
 add_action( 'init', static function() {
@@ -350,7 +351,34 @@ function fftt_club_tools_import_page() {
         }
     }
 
+    if ( isset( $_POST['fftt_club_tools_run_team_standing_import'] ) ) {
+        check_admin_referer( 'fftt_club_tools_run_team_standing_import_nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'Vous n\'avez pas les droits pour lancer cet import.', 'text_domain' ) );
+        }
+
+        try {
+            $stats = FfttClubToolsTeamStandingImporter::run();
+            $stats['timestamp'] = current_time( 'mysql' );
+            update_option( 'fftt_club_tools_last_team_standing_import_stats', $stats );
+
+            echo '<div class="updated"><p>Import classements équipes terminé : '
+                . 'total=' . esc_html( (string) $stats['total'] )
+                . ', mis à jour=' . esc_html( (string) $stats['updated'] )
+                . ', ignorés=' . esc_html( (string) $stats['skipped'] )
+                . ', erreurs=' . esc_html( (string) $stats['errors'] )
+                . '.</p></div>';
+        } catch ( \Throwable $exception ) {
+            echo '<div class="notice notice-error"><p>'
+                . esc_html__( 'Import des classements équipes impossible : ', 'text_domain' )
+                . esc_html( $exception->getMessage() )
+                . '</p></div>';
+        }
+    }
+
     $lastImportStats = get_option( 'fftt_club_tools_last_import_stats', [] );
+    $lastTeamStandingImportStats = get_option( 'fftt_club_tools_last_team_standing_import_stats', [] );
     ?>
     <div class="wrap">
         <h1>Import FFTT</h1>
@@ -377,6 +405,34 @@ function fftt_club_tools_import_page() {
                 <li><?php echo esc_html( 'Mis à jour: ' . (string) ( $lastImportStats['updated'] ?? 0 ) ); ?></li>
                 <li><?php echo esc_html( 'Ignorés: ' . (string) ( $lastImportStats['skipped'] ?? 0 ) ); ?></li>
                 <li><?php echo esc_html( 'Erreurs: ' . (string) ( $lastImportStats['errors'] ?? 0 ) ); ?></li>
+            </ul>
+        <?php endif; ?>
+
+        <hr />
+
+        <h2>Classements équipes</h2>
+        <p>Récupère le classement actuel de chaque équipe dans sa poule et le stocke sur la taxonomie <code>equipe</code>.</p>
+
+        <form method="post" action="">
+            <?php wp_nonce_field( 'fftt_club_tools_run_team_standing_import_nonce' ); ?>
+            <input type="hidden" name="fftt_club_tools_run_team_standing_import" value="1" />
+            <?php submit_button( 'Importer les classements équipes', 'secondary' ); ?>
+        </form>
+
+        <?php if ( is_array( $lastTeamStandingImportStats ) && ! empty( $lastTeamStandingImportStats ) ) : ?>
+            <h3>Dernier import classements équipes</h3>
+            <p>
+                <?php
+                $lastTeamStandingImportDate = isset( $lastTeamStandingImportStats['timestamp'] ) ? (string) $lastTeamStandingImportStats['timestamp'] : '';
+                $dateLabel = $lastTeamStandingImportDate !== '' ? $lastTeamStandingImportDate : 'date inconnue';
+                echo esc_html( sprintf( 'Exécuté le %s', $dateLabel ) );
+                ?>
+            </p>
+            <ul>
+                <li><?php echo esc_html( 'Total: ' . (string) ( $lastTeamStandingImportStats['total'] ?? 0 ) ); ?></li>
+                <li><?php echo esc_html( 'Mis à jour: ' . (string) ( $lastTeamStandingImportStats['updated'] ?? 0 ) ); ?></li>
+                <li><?php echo esc_html( 'Ignorés: ' . (string) ( $lastTeamStandingImportStats['skipped'] ?? 0 ) ); ?></li>
+                <li><?php echo esc_html( 'Erreurs: ' . (string) ( $lastTeamStandingImportStats['errors'] ?? 0 ) ); ?></li>
             </ul>
         <?php endif; ?>
     </div>
@@ -620,6 +676,14 @@ function fftt_club_tools_get_player_points( int $postId ): float {
     return $points;
 }
 
+function fftt_club_tools_format_team_standing_rank( int $rank ): string {
+    if ( $rank <= 0 ) {
+        return '';
+    }
+
+    return $rank === 1 ? '1er' : (string) $rank . 'e';
+}
+
 function fftt_club_tools_render_team_archive_header( string $blockContent ): string {
     if ( is_admin() || ! is_tax( 'equipe' ) ) {
         return $blockContent;
@@ -661,6 +725,12 @@ function fftt_club_tools_render_team_archive_header( string $blockContent ): str
     $averagePoints = $playerCount > 0 ? round( $totalPoints / $playerCount ) : 0;
     $teamWinPct = $totalMatches > 0 ? min( 100, max( 0, (int) round( $totalWins / $totalMatches * 100 ) ) ) : 0;
     $totalProgressionLabel = ( $totalProgression > 0 ? '+' : '' ) . number_format_i18n( $totalProgression, 1 );
+    $standingRank = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_rank', true );
+    $standingRankLabel = fftt_club_tools_format_team_standing_rank( $standingRank );
+    $standingPoints = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_points', true );
+    $standingPlayed = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_played', true );
+    $standingWins = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_wins', true );
+    $standingLosses = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_losses', true );
 
     $html = '<section class="fftt_club_tools-team-hero" aria-label="Résumé de l’équipe">';
     $html .= '<div>';
@@ -680,6 +750,14 @@ function fftt_club_tools_render_team_archive_header( string $blockContent ): str
     }
     if ( $totalMatches > 0 ) {
         $html .= '<span><strong>' . esc_html( (string) $teamWinPct ) . '%</strong> ' . esc_html( (string) $totalWins ) . '/' . esc_html( (string) $totalMatches ) . ' victoires</span>';
+    }
+    if ( $standingRankLabel !== '' ) {
+        $html .= '<span class="fftt_club_tools-team-hero-stat--standing"><strong>' . esc_html( $standingRankLabel ) . '</strong> classement</span>';
+        $html .= '<span><strong>' . esc_html( (string) $standingPoints ) . '</strong> pts poule</span>';
+        if ( $standingPlayed > 0 ) {
+            $html .= '<span><strong>' . esc_html( (string) $standingPlayed ) . '</strong> matchs poule</span>';
+        }
+        $html .= '<span><strong>' . esc_html( (string) $standingWins ) . 'V / ' . esc_html( (string) $standingLosses ) . 'D</strong> bilan poule</span>';
     }
     $html .= '</div>';
     $html .= '</section>';
