@@ -106,3 +106,71 @@
 .fftt_club_tools-team-links ul {
     margin: 0.4rem 0 0;
 }
+
+.fftt_club_tools-player-single {
+    margin: 2rem 0;
+}
+
+.fftt_club_tools-player-single-grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+    align-items: start;
+}
+
+.fftt_club_tools-player-figure {
+    margin: 0;
+}
+
+.fftt_club_tools-player-photo {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    display: block;
+    background: color-mix(in srgb, currentColor 5%, transparent);
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.fftt_club_tools-player-fields {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(130px, 220px) minmax(0, 1fr);
+    row-gap: 0.6rem;
+    column-gap: 1rem;
+}
+
+.fftt_club_tools-player-fields dt {
+    font-weight: 600;
+}
+
+.fftt_club_tools-player-fields dd {
+    margin: 0;
+}
+
+.fftt_club_tools-player-icon {
+    display: inline-block;
+    min-width: 1.1em;
+    text-align: center;
+    margin-right: 0.2em;
+}
+
+.fftt_club_tools-player-team-link {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+    .fftt_club_tools-player-single-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .fftt_club_tools-player-fields {
+        grid-template-columns: 1fr;
+        row-gap: 0.25rem;
+    }
+
+    .fftt_club_tools-player-fields dt {
+        margin-top: 0.6rem;
+    }
+}

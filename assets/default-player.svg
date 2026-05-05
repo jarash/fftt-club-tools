@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800" role="img" aria-labelledby="title desc">
+  <title id="title">Photo joueur par defaut</title>
+  <desc id="desc">Silhouette de joueur de tennis de table.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4f6fb"/>
+      <stop offset="100%" stop-color="#dde5f4"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <circle cx="300" cy="250" r="95" fill="#98abcf"/>
+  <path d="M120 700c10-150 100-235 180-235s170 85 180 235" fill="#98abcf"/>
+  <rect x="60" y="720" width="480" height="16" rx="8" fill="#bac8e2"/>
+</svg>

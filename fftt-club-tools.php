@@ -623,6 +623,191 @@ function fftt_club_tools_render_team_archive_points( $blockContent, $block ) {
 }
 add_filter( 'render_block_core/post-date', 'fftt_club_tools_render_team_archive_points', 10, 2 );
 
+function fftt_club_tools_hide_player_meta_byline( string $blockContent ): string {
+    if ( is_admin() || ! is_singular( 'joueur' ) ) {
+        return $blockContent;
+    }
+
+    return '';
+}
+add_filter( 'render_block_core/post-author-name', 'fftt_club_tools_hide_player_meta_byline', 10, 1 );
+add_filter( 'render_block_core/post-terms', 'fftt_club_tools_hide_player_meta_byline', 10, 1 );
+
+function fftt_club_tools_hide_player_byline_paragraphs( string $blockContent ): string {
+    if ( is_admin() || ! is_singular( 'joueur' ) ) {
+        return $blockContent;
+    }
+
+    $text = wp_strip_all_tags( $blockContent );
+    $text = preg_replace( '/\s+/', ' ', (string) $text );
+    $text = trim( (string) $text );
+    $lowerText = function_exists( 'mb_strtolower' ) ? mb_strtolower( $text, 'UTF-8' ) : strtolower( $text );
+
+    if ( in_array( $lowerText, [ 'ecrit par', 'écrit par', 'dans' ], true ) ) {
+        return '';
+    }
+
+    return $blockContent;
+}
+add_filter( 'render_block_core/paragraph', 'fftt_club_tools_hide_player_byline_paragraphs', 10, 1 );
+
+function fftt_club_tools_hide_empty_player_byline_group( string $blockContent ): string {
+    if ( is_admin() || ! is_singular( 'joueur' ) ) {
+        return $blockContent;
+    }
+
+    if ( strpos( $blockContent, 'has-small-font-size' ) === false ) {
+        return $blockContent;
+    }
+
+    $text = trim( (string) wp_strip_all_tags( $blockContent ) );
+    if ( $text === '' ) {
+        return '';
+    }
+
+    return $blockContent;
+}
+add_filter( 'render_block_core/group', 'fftt_club_tools_hide_empty_player_byline_group', 10, 1 );
+
+function fftt_club_tools_add_player_row( array &$rows, string $label, string $value, bool $isHtml = false ): void {
+    $normalizedValue = trim( $value );
+    if ( $normalizedValue === '' ) {
+        return;
+    }
+
+    $rows[] = [
+        'label' => $label,
+        'value' => $normalizedValue,
+        'is_html' => $isHtml,
+    ];
+}
+
+function fftt_club_tools_get_player_team_link( int $postId ): string {
+    $terms = wp_get_post_terms( $postId, 'equipe' );
+    if ( is_wp_error( $terms ) || empty( $terms ) ) {
+        return '';
+    }
+
+    $team = $terms[0];
+    if ( ! $team instanceof WP_Term ) {
+        return '';
+    }
+
+    $teamUrl = get_term_link( $team );
+    if ( is_wp_error( $teamUrl ) ) {
+        return '';
+    }
+
+    return '<a class="fftt_club_tools-player-team-link" href="' . esc_url( $teamUrl ) . '">' . esc_html( $team->name ) . '</a>';
+}
+
+function fftt_club_tools_collect_player_rows( int $postId ): array {
+    $rows = [];
+
+    $prenom = trim( (string) get_post_meta( $postId, 'prenom', true ) );
+    $nom = trim( (string) get_post_meta( $postId, 'nom', true ) );
+    $surnom = trim( (string) get_post_meta( $postId, 'surnom', true ) );
+    $sexe = strtolower( trim( (string) get_post_meta( $postId, 'sexe', true ) ) );
+    $main = strtolower( trim( (string) get_post_meta( $postId, 'main', true ) ) );
+    $categorie = trim( (string) get_post_meta( $postId, 'categorie', true ) );
+    $numeroLicence = trim( (string) get_post_meta( $postId, 'numero_licence', true ) );
+
+    $pointsFftt = (float) get_post_meta( $postId, 'points_fftt', true );
+    $pointsDebutSaison = (float) get_post_meta( $postId, 'points_fftt_debut_saison', true );
+    $pointsMensuel = (float) get_post_meta( $postId, 'points_fftt_mensuel', true );
+    $pointsVirtuel = (float) get_post_meta( $postId, 'points_fftt_virtuel', true );
+    $progression = (float) get_post_meta( $postId, 'progression_points_fftt', true );
+
+    fftt_club_tools_add_player_row( $rows, 'Prenom', $prenom );
+    fftt_club_tools_add_player_row( $rows, 'Nom', $nom );
+    fftt_club_tools_add_player_row( $rows, 'Surnom', $surnom );
+
+    if ( $sexe === 'homme' ) {
+        fftt_club_tools_add_player_row( $rows, 'Sexe', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#9794;</span> Homme', true );
+    } elseif ( $sexe === 'femme' ) {
+        fftt_club_tools_add_player_row( $rows, 'Sexe', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#9792;</span> Femme', true );
+    }
+
+    if ( $main === 'gauche' ) {
+        fftt_club_tools_add_player_row( $rows, 'Main', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#8592;</span> Gauche', true );
+    } elseif ( $main === 'droite' ) {
+        fftt_club_tools_add_player_row( $rows, 'Main', '<span class="fftt_club_tools-player-icon" aria-hidden="true">&#8594;</span> Droite', true );
+    }
+
+    fftt_club_tools_add_player_row( $rows, 'Categorie', strtoupper( $categorie ) );
+    fftt_club_tools_add_player_row( $rows, 'Numero de licence', $numeroLicence );
+
+    $teamLink = fftt_club_tools_get_player_team_link( $postId );
+    fftt_club_tools_add_player_row( $rows, 'Equipe', $teamLink, true );
+
+    if ( $pointsFftt > 0 ) {
+        fftt_club_tools_add_player_row( $rows, 'Points FFTT', number_format_i18n( $pointsFftt, 0 ) );
+    }
+    if ( $pointsDebutSaison > 0 ) {
+        fftt_club_tools_add_player_row( $rows, 'Points debut saison', number_format_i18n( $pointsDebutSaison, 0 ) );
+    }
+    if ( $pointsMensuel > 0 ) {
+        fftt_club_tools_add_player_row( $rows, 'Points mensuel', number_format_i18n( $pointsMensuel, 1 ) );
+    }
+    if ( $pointsVirtuel > 0 ) {
+        fftt_club_tools_add_player_row( $rows, 'Points virtuel', number_format_i18n( $pointsVirtuel, 1 ) );
+    }
+
+    if ( $progression !== 0.0 ) {
+        $progressionLabel = ( $progression > 0 ? '+' : '' ) . number_format_i18n( $progression, 1 );
+        fftt_club_tools_add_player_row( $rows, 'Progression', $progressionLabel );
+    }
+
+    return $rows;
+}
+
+function fftt_club_tools_render_player_single_content( string $content ): string {
+    if ( is_admin() || ! is_singular( 'joueur' ) || ! in_the_loop() || ! is_main_query() ) {
+        return $content;
+    }
+
+    $postId = get_the_ID();
+    if ( ! $postId || get_post_type( $postId ) !== 'joueur' ) {
+        return $content;
+    }
+
+    $photoUrl = get_the_post_thumbnail_url( $postId, 'large' );
+    if ( ! $photoUrl ) {
+        $photoUrl = FFTT_CLUB_TOOLS_PLUGIN_URL . 'assets/default-player.svg';
+    }
+
+    $metaRows = fftt_club_tools_collect_player_rows( (int) $postId );
+
+    $html = '<section class="fftt_club_tools-player-single">';
+    $html .= '<div class="fftt_club_tools-player-single-grid">';
+    $html .= '<figure class="fftt_club_tools-player-figure">';
+    $html .= '<img class="fftt_club_tools-player-photo" src="' . esc_url( $photoUrl ) . '" alt="' . esc_attr( get_the_title() ) . '" loading="lazy" />';
+    $html .= '</figure>';
+    $html .= '<section class="fftt_club_tools-player-data" aria-label="Informations joueur">';
+
+    if ( $metaRows !== [] ) {
+        $html .= '<dl class="fftt_club_tools-player-fields">';
+        foreach ( $metaRows as $metaRow ) {
+            $html .= '<dt>' . esc_html( (string) $metaRow['label'] ) . '</dt>';
+            if ( ! empty( $metaRow['is_html'] ) ) {
+                $html .= '<dd>' . wp_kses_post( (string) $metaRow['value'] ) . '</dd>';
+            } else {
+                $html .= '<dd>' . esc_html( (string) $metaRow['value'] ) . '</dd>';
+            }
+        }
+        $html .= '</dl>';
+    } else {
+        $html .= '<p>Aucun champ personnalise disponible pour ce joueur.</p>';
+    }
+
+    $html .= '</section>';
+    $html .= '</div>';
+    $html .= '</section>';
+
+    return $html;
+}
+add_filter( 'the_content', 'fftt_club_tools_render_player_single_content', 20 );
+
 #endregion
 
 #region ShortCode [ranking]
