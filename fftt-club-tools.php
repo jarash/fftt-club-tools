@@ -836,10 +836,6 @@ function fftt_club_tools_render_player_single_content( string $content ): string
     $html .= '</figure>';
     $html .= '<section class="fftt_club_tools-player-data" aria-label="Informations joueur">';
 
-    if ( (string) $profile['display_name'] !== '' ) {
-        $html .= '<p class="fftt_club_tools-player-kicker">' . esc_html( (string) $profile['display_name'] ) . '</p>';
-    }
-
     if ( $profile['badges'] !== [] ) {
         $html .= '<div class="fftt_club_tools-player-badges">';
         foreach ( $profile['badges'] as $badge ) {
