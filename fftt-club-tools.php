@@ -710,21 +710,17 @@ function fftt_club_tools_render_team_archive_header( string $blockContent ): str
 
     $playerCount = count( $playerIds );
     $totalPoints = 0.0;
-    $totalProgression = 0.0;
     $totalMatches = 0;
     $totalWins = 0;
 
     foreach ( $playerIds as $playerId ) {
         $points = fftt_club_tools_get_player_points( (int) $playerId );
         $totalPoints += $points;
-        $totalProgression += (float) get_post_meta( (int) $playerId, 'progression_points_fftt', true );
         $totalMatches += (int) get_post_meta( (int) $playerId, 'matchs_joues', true );
         $totalWins += max( 0, (int) get_post_meta( (int) $playerId, 'matchs_gagnes', true ) );
     }
 
     $averagePoints = $playerCount > 0 ? round( $totalPoints / $playerCount ) : 0;
-    $teamWinPct = $totalMatches > 0 ? min( 100, max( 0, (int) round( $totalWins / $totalMatches * 100 ) ) ) : 0;
-    $totalProgressionLabel = ( $totalProgression > 0 ? '+' : '' ) . number_format_i18n( $totalProgression, 1 );
     $standingRank = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_rank', true );
     $standingRankLabel = fftt_club_tools_format_team_standing_rank( $standingRank );
     $standingPoints = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_points', true );
@@ -743,13 +739,7 @@ function fftt_club_tools_render_team_archive_header( string $blockContent ): str
     $html .= '<div class="fftt_club_tools-team-hero-stats">';
     $html .= '<span><strong>' . esc_html( (string) $playerCount ) . '</strong> joueurs</span>';
     if ( $averagePoints > 0 ) {
-        $html .= '<span><strong>' . esc_html( number_format_i18n( $averagePoints, 0 ) ) . '</strong> moyenne</span>';
-    }
-    if ( $totalProgression !== 0.0 ) {
-        $html .= '<span class="fftt_club_tools-team-hero-stat--' . esc_attr( $totalProgression > 0 ? 'up' : 'down' ) . '"><strong>' . esc_html( $totalProgressionLabel ) . '</strong> progression</span>';
-    }
-    if ( $totalMatches > 0 ) {
-        $html .= '<span><strong>' . esc_html( (string) $teamWinPct ) . '%</strong> ' . esc_html( (string) $totalWins ) . '/' . esc_html( (string) $totalMatches ) . ' victoires</span>';
+        $html .= '<span><strong>' . esc_html( number_format_i18n( $averagePoints, 0 ) ) . '</strong> pts de moyenne</span>';
     }
     if ( $standingRankLabel !== '' ) {
         $html .= '<span class="fftt_club_tools-team-hero-stat--standing"><strong>' . esc_html( $standingRankLabel ) . '</strong> classement</span>';
