@@ -988,7 +988,7 @@ function fftt_club_tools_collect_player_profile( int $postId ): array {
     $pointsPrimaryLabel = $pointsVirtuel > 0 ? 'Points virtuels' : 'Points FFTT';
     $pointsSecondary = [];
     if ( $pointsFftt > 0 ) {
-        $pointsSecondary[] = [ 'label' => 'FFTT', 'value' => number_format_i18n( $pointsFftt, 0 ) ];
+        $pointsSecondary[] = [ 'label' => 'Officiel', 'value' => number_format_i18n( $pointsFftt, 0 ) ];
     }
     if ( $pointsMensuel > 0 ) {
         $pointsSecondary[] = [ 'label' => 'Mensuel', 'value' => number_format_i18n( $pointsMensuel, 1 ) ];
