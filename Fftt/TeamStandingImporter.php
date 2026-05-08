@@ -64,12 +64,13 @@ class FfttClubToolsTeamStandingImporter
                 continue;
             }
 
-            $term = self::findTerm($terms, array_merge([
+            $term = self::findTerm(
+                $terms,
                 $clubTeamName,
                 (string) $poolTeam->getNomEquipe(),
                 (string) $poolTeam->getNumero(),
-                $division,
-            ], self::buildDivisionAliases($division)));
+                $division
+            );
 
             if (!$term instanceof WP_Term) {
                 $stats['skipped']++;
@@ -94,25 +95,67 @@ class FfttClubToolsTeamStandingImporter
 
     private static function findPoolTeam(string $clubTeamName, array $poolTeams): ?object
     {
-        $normalizedClubTeamName = self::normalize($clubTeamName);
+        $normalizedClubTeamName = self::normalizeTeamName($clubTeamName);
+        $clubTeamNumber = self::extractTeamNumber($clubTeamName);
+        $bestCandidate = null;
+        $bestScore = -1;
+        $isAmbiguous = false;
 
         foreach ($poolTeams as $poolTeam) {
-            $poolTeamName = self::normalize((string) $poolTeam->getNomEquipe());
-            if (self::namesMatch($normalizedClubTeamName, $poolTeamName)) {
-                return $poolTeam;
+            $poolTeamName = self::normalizeTeamName((string) $poolTeam->getNomEquipe());
+            if (!self::namesMatch($normalizedClubTeamName, $poolTeamName)) {
+                continue;
+            }
+
+            $score = 0;
+            if ($normalizedClubTeamName === $poolTeamName) {
+                $score += 6;
+            } else {
+                $score += 2;
+            }
+
+            $poolTeamNumber = self::extractTeamNumber((string) $poolTeam->getNomEquipe());
+            if ($clubTeamNumber > 0 && $poolTeamNumber > 0) {
+                if ($clubTeamNumber !== $poolTeamNumber) {
+                    continue;
+                }
+
+                $score += 10;
+            }
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestCandidate = $poolTeam;
+                $isAmbiguous = false;
+            } elseif ($score === $bestScore) {
+                $isAmbiguous = true;
             }
         }
 
-        return null;
+        if ($bestCandidate === null || $isAmbiguous) {
+            return null;
+        }
+
+        return $bestCandidate;
     }
 
     /**
      * @param array<WP_Term> $terms
-     * @param array<string>  $candidates
      */
-    private static function findTerm(array $terms, array $candidates): ?WP_Term
+    private static function findTerm(array $terms, string $clubTeamName, string $poolTeamName, string $poolTeamNumber, string $division): ?WP_Term
     {
-        $normalizedCandidates = array_values(array_filter(array_map([self::class, 'normalize'], $candidates)));
+        $normalizedClubTeamName = self::normalizeTeamName($clubTeamName);
+        $normalizedPoolTeamName = self::normalizeTeamName($poolTeamName);
+        $divisionAliases = array_map([self::class, 'normalize'], self::buildDivisionAliases($division));
+        $divisionAliases = array_values(array_filter($divisionAliases));
+
+        $clubTeamNumber = self::extractTeamNumber($clubTeamName);
+        $poolTeamNumberAsInt = (int) trim($poolTeamNumber);
+        $expectedNumber = $clubTeamNumber > 0 ? $clubTeamNumber : ($poolTeamNumberAsInt > 0 ? $poolTeamNumberAsInt : 0);
+
+        $bestTerm = null;
+        $bestScore = -1;
+        $isAmbiguous = false;
 
         foreach ($terms as $term) {
             $termValues = [
@@ -121,20 +164,55 @@ class FfttClubToolsTeamStandingImporter
                 self::normalize($term->description),
             ];
 
+            $score = 0;
             foreach ($termValues as $termValue) {
                 if ($termValue === '') {
                     continue;
                 }
 
-                foreach ($normalizedCandidates as $candidate) {
-                    if (self::namesMatch($termValue, $candidate)) {
-                        return $term;
+                if ($termValue === $normalizedClubTeamName || $termValue === $normalizedPoolTeamName) {
+                    $score += 12;
+                } elseif (self::namesMatch($termValue, $normalizedClubTeamName) || self::namesMatch($termValue, $normalizedPoolTeamName)) {
+                    $score += 4;
+                }
+
+                if (!empty($divisionAliases) && in_array($termValue, $divisionAliases, true)) {
+                    $score += 3;
+                }
+            }
+
+            if ($expectedNumber > 0) {
+                $termHasExpectedNumber = false;
+                foreach ($termValues as $termValue) {
+                    if ($termValue !== '' && self::containsTeamNumber($termValue, $expectedNumber)) {
+                        $termHasExpectedNumber = true;
+                        break;
                     }
                 }
+
+                if ($termHasExpectedNumber) {
+                    $score += 10;
+                }
+            }
+
+            if ($score <= 0) {
+                continue;
+            }
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestTerm = $term;
+                $isAmbiguous = false;
+            } elseif ($score === $bestScore) {
+                $isAmbiguous = true;
             }
         }
 
-        return null;
+        if ($bestTerm === null || $isAmbiguous) {
+            return null;
+        }
+
+        return $bestTerm;
     }
 
     private static function normalize(string $value): string
@@ -185,6 +263,42 @@ class FfttClubToolsTeamStandingImporter
         }
 
         return $left === $right || str_starts_with($left, $right) || str_starts_with($right, $left);
+    }
+
+    private static function extractTeamNumber(string $value): int
+    {
+        $normalized = self::normalizeTeamName($value);
+        if ($normalized === '') {
+            return 0;
+        }
+
+        if (preg_match('/\b(\d{1,2})\b(?!.*\b\d{1,2}\b)/', $normalized, $matches) !== 1) {
+            return 0;
+        }
+
+        return (int) $matches[1];
+    }
+
+    private static function normalizeTeamName(string $value): string
+    {
+        $normalized = self::normalize($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        // Les libellés API peuvent contenir un suffixe "phase X" qui ne fait pas partie de l'identité de l'équipe.
+        $withoutPhase = preg_replace('/\bphase\s+\d+\b/', ' ', $normalized) ?: $normalized;
+
+        return preg_replace('/\s+/', ' ', trim($withoutPhase)) ?: '';
+    }
+
+    private static function containsTeamNumber(string $value, int $number): bool
+    {
+        if ($number <= 0 || $value === '') {
+            return false;
+        }
+
+        return preg_match('/\b' . preg_quote((string) $number, '/') . '\b/', $value) === 1;
     }
 
     private static function getConfigValue(string $constantName, string $optionName): string
