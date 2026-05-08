@@ -29,7 +29,7 @@ class FfttClubToolsImporter
         ];
 
         try {
-            $players = $ffttService->ffttApi->listJoueursByClub($ffttService->clubId);
+            $players = $ffttService->listJoueursByClubCached();
         } catch (Throwable $exception) {
             throw new RuntimeException('Impossible de récupérer la liste des joueurs: ' . $exception->getMessage(), 0, $exception);
         }
@@ -39,9 +39,9 @@ class FfttClubToolsImporter
             $licenceId = (string) $player->getLicence();
 
             try {
-                $playerDetail = $ffttService->ffttApi->retrieveJoueurDetails($licenceId);
-                $virtualPoints = $ffttService->ffttApi->retrieveVirtualPoints($licenceId);
-                $parties = $ffttService->ffttApi->listPartiesJoueurByLicence($licenceId);
+                $playerDetail = $ffttService->retrieveJoueurDetailsCached($licenceId);
+                $virtualPoints = $ffttService->retrieveVirtualPointsCached($licenceId);
+                $parties = $ffttService->listPartiesJoueurByLicenceCached($licenceId);
             } catch (Throwable $exception) {
                 $stats['skipped']++;
                 $stats['errors']++;

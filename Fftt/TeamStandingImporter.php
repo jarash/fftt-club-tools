@@ -37,7 +37,7 @@ class FfttClubToolsTeamStandingImporter
         }
 
         try {
-            $teams = $ffttService->ffttApi->listEquipesByClub($ffttService->clubId);
+            $teams = $ffttService->listEquipesByClubCached();
         } catch (Throwable $exception) {
             throw new RuntimeException('Impossible de récupérer les équipes FFTT: ' . $exception->getMessage(), 0, $exception);
         }
@@ -49,7 +49,7 @@ class FfttClubToolsTeamStandingImporter
             $divisionLink = (string) $team->getLienDivision();
 
             try {
-                $poolTeams = $ffttService->ffttApi->listEquipePouleByLienDivision($divisionLink);
+                $poolTeams = $ffttService->listEquipePouleByLienDivisionCached($divisionLink);
             } catch (Throwable $exception) {
                 $stats['skipped']++;
                 $stats['errors']++;

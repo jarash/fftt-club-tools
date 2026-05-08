@@ -231,6 +231,12 @@ function fftt_club_tools_settings_page() {
             $postedFrequency = 'daily';
         }
 
+        $postedApiCacheTtl = isset( $_POST['api_cache_ttl'] ) ? (int) $_POST['api_cache_ttl'] : 3600;
+        if ( $postedApiCacheTtl < 0 ) {
+            $postedApiCacheTtl = 0;
+        }
+        update_option( 'fftt_club_tools_api_cache_ttl', $postedApiCacheTtl );
+
         $previousFrequency = (string) get_option( 'fftt_club_tools_cron_frequency', 'daily' );
         update_option( 'fftt_club_tools_cron_frequency', $postedFrequency );
 
@@ -240,6 +246,17 @@ function fftt_club_tools_settings_page() {
         }
 
         echo '<div class="updated"><p>Paramètres enregistrés avec succès.</p></div>';
+    }
+
+    if (isset($_POST['fftt_club_tools_clear_api_cache'])) {
+        check_admin_referer('fftt_club_tools_clear_api_cache_nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__( 'Vous n\'avez pas les droits pour vider le cache.', 'text_domain' ));
+        }
+
+        $deletedEntries = FfttService::clearApiCache();
+        echo '<div class="updated"><p>Cache API FFTT vidé. ' . esc_html((string) $deletedEntries) . ' entrée(s) supprimée(s).</p></div>';
     }
 
     // Récupère les valeurs actuelles
@@ -291,6 +308,7 @@ function fftt_club_tools_settings_page() {
             <input type="hidden" name="fftt_club_tools_save_api_settings" value="1" />
             <?php
             $cronFrequency = (string) get_option( 'fftt_club_tools_cron_frequency', 'daily' );
+            $apiCacheTtl = (int) get_option( 'fftt_club_tools_api_cache_ttl', 3600 );
             $nextCron = wp_next_scheduled( 'fftt_club_tools_cron_import' );
             $isOverdueCron = $nextCron && $nextCron <= time();
             ?>
@@ -315,8 +333,25 @@ function fftt_club_tools_settings_page() {
                         <?php endif; ?>
                     </td>
                 </tr>
+                <tr>
+                    <th scope="row"><label for="api_cache_ttl">Cache API FFTT (secondes)</label></th>
+                    <td>
+                        <input type="number" min="0" step="1" name="api_cache_ttl" id="api_cache_ttl" value="<?php echo esc_attr( (string) $apiCacheTtl ); ?>" class="small-text" />
+                        <p class="description">0 = désactivé. Valeur recommandée : 3600.</p>
+                    </td>
+                </tr>
             </table>
             <?php submit_button('Enregistrer les paramètres'); ?>
+        </form>
+
+        <hr />
+
+        <h2>Maintenance du cache</h2>
+        <p>Vide manuellement le cache API FFTT utilisé pour limiter les appels réseau.</p>
+        <form method="post" action="">
+            <?php wp_nonce_field('fftt_club_tools_clear_api_cache_nonce'); ?>
+            <input type="hidden" name="fftt_club_tools_clear_api_cache" value="1" />
+            <?php submit_button('Vider le cache API FFTT', 'secondary', 'submit', false); ?>
         </form>
 
     </div>
