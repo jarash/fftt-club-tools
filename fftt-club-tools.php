@@ -2,7 +2,7 @@
 /*
 Plugin Name: FFTT Club Tools
 Description: Outils WordPress pour la gestion d'un club FFTT.
-Version: 1.1.0
+Version: 1.2.0
 Author: Vincent Rousseau
 Update URI: https://github.com/jarash/fftt-club-tools
 Requires Plugins: advanced-custom-fields
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
 
-define( 'FFTT_CLUB_TOOLS_VERSION', '1.1.0' );
+define( 'FFTT_CLUB_TOOLS_VERSION', '1.2.0' );
 define( 'FFTT_CLUB_TOOLS_PLUGIN_FILE', __FILE__ );
 define( 'FFTT_CLUB_TOOLS_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'FFTT_CLUB_TOOLS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
