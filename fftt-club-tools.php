@@ -723,10 +723,6 @@ function fftt_club_tools_render_team_archive_header( string $blockContent ): str
     $averagePoints = $playerCount > 0 ? round( $totalPoints / $playerCount ) : 0;
     $standingRank = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_rank', true );
     $standingRankLabel = fftt_club_tools_format_team_standing_rank( $standingRank );
-    $standingPoints = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_points', true );
-    $standingPlayed = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_played', true );
-    $standingWins = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_wins', true );
-    $standingLosses = (int) get_term_meta( (int) $team->term_id, 'fftt_team_standing_losses', true );
 
     $html = '<section class="fftt_club_tools-team-hero" aria-label="Résumé de l’équipe">';
     $html .= '<div>';
@@ -743,11 +739,6 @@ function fftt_club_tools_render_team_archive_header( string $blockContent ): str
     }
     if ( $standingRankLabel !== '' ) {
         $html .= '<span class="fftt_club_tools-team-hero-stat--standing"><strong>' . esc_html( $standingRankLabel ) . '</strong> classement</span>';
-        $html .= '<span><strong>' . esc_html( (string) $standingPoints ) . '</strong> pts poule</span>';
-        if ( $standingPlayed > 0 ) {
-            $html .= '<span><strong>' . esc_html( (string) $standingPlayed ) . '</strong> matchs poule</span>';
-        }
-        $html .= '<span><strong>' . esc_html( (string) $standingWins ) . 'V / ' . esc_html( (string) $standingLosses ) . 'D</strong> bilan poule</span>';
     }
     $html .= '</div>';
     $html .= '</section>';
