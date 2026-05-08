@@ -14,6 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract changelog
+        id: changelog
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          # Extrait la section du changelog pour cette version (CHANGELOG utilise X.Y.Z, pas vX.Y.Z)
+          CHANGELOG=$(awk -v version="$VERSION" '
+            $0 ~ "^## \\[" version "\\]" { in_section=1; next }
+            in_section && $0 ~ "^## \\[" { exit }
+            in_section { print }
+          ' CHANGELOG.md)
+          # Escape pour les passer en output
+          CHANGELOG="${CHANGELOG//'%'/'%25'}"
+          CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
+          CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+          echo "body=$CHANGELOG" >> $GITHUB_OUTPUT
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -39,3 +56,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/fftt-club-tools.zip
+          body: ${{ steps.changelog.outputs.body }}
